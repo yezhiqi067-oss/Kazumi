@@ -91,18 +91,41 @@ class BangumiItem {
       return [];
     }
 
+    int parseIntValue(dynamic raw) {
+      return raw is num
+          ? raw.toInt()
+          : int.tryParse(raw?.toString() ?? '') ?? 0;
+    }
+
     List<int> parseBangumiVoteCount(Map<String, dynamic> jsonData) {
-      if (!jsonData.containsKey('rating')) {
+      final rating = jsonData['rating'];
+      if (rating is! Map) {
         return [];
       }
-      final json = jsonData['rating']['count'];
-      if (json is Map<String, dynamic>) {
-        return List<int>.generate(10, (i) => json['${i + 1}'] as int);
+      final json = rating['count'];
+      if (json is Map) {
+        return List<int>.generate(10, (i) => parseIntValue(json['${i + 1}']));
       }
-      if (json is List<dynamic>) {
-        return json.map((e) => e as int).toList();
+      if (json is List) {
+        return json.map(parseIntValue).toList();
       }
       return [];
+    }
+
+    Map<String, String> resolveImages(Map<String, dynamic> jsonData) {
+      final rawImages = jsonData['images'];
+      if (rawImages is Map) {
+        return rawImages.map(
+          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+        );
+      }
+      return {
+        'large': jsonData['image']?.toString() ?? '',
+        'common': '',
+        'medium': '',
+        'small': '',
+        'grid': '',
+      };
     }
 
     String resolveAirDateString(Map<String, dynamic> jsonData) {
@@ -135,33 +158,37 @@ class BangumiItem {
       interest =
           BangumiInterest.fromJson(Map<String, dynamic>.from(interestRaw));
     }
+    final rawRating = json['rating'];
+    final ratingMap =
+        rawRating is Map ? rawRating : const <String, dynamic>{};
+    final rawRank = ratingMap['rank'];
+    final rawScore = ratingMap['score'];
+    final rawTotal = ratingMap['total'];
+    final rawName = (json['name'] ?? '').toString();
+    final rawNameCn = (json['name_cn'] ?? '').toString();
+    final rawNameCN = (json['nameCN'] ?? '').toString();
     return BangumiItem(
       id: json['id'],
       type: json['type'] ?? 2,
-      name: json['name'] ?? '',
-      nameCn: (json['name_cn'] ?? '') == ''
-          ? (((json['nameCN'] ?? '') == '') ? json['name'] : json['nameCN'])
-          : json['name_cn'],
+      name: rawName,
+      nameCn: rawNameCn.isEmpty
+          ? (rawNameCN.isEmpty ? rawName : rawNameCN)
+          : rawNameCn,
       summary: json['summary'] ?? '',
       airDate: airDateStr,
       airWeekday:
           dateStringToWeekday(airDateStr.isEmpty ? '2000-11-11' : airDateStr),
-      rank: json['rating']['rank'] ?? 0,
-      images: Map<String, String>.from(
-        json['images'] ??
-            {
-              "large": json['image'],
-              "common": "",
-              "medium": "",
-              "small": "",
-              "grid": ""
-            },
-      ),
+      rank: parseIntValue(rawRank),
+      images: resolveImages(json),
       tags: tagList,
       alias: parseBangumiAliases(json),
       ratingScore: double.parse(
-          (json['rating']['score'] ?? 0.0).toDouble().toStringAsFixed(1)),
-      votes: json['rating']['total'] ?? 0,
+        (rawScore is num
+                ? rawScore.toDouble()
+                : double.tryParse(rawScore?.toString() ?? '') ?? 0.0)
+            .toStringAsFixed(1),
+      ),
+      votes: parseIntValue(rawTotal),
       votesCount: parseBangumiVoteCount(json),
       info: json['info'] ?? '',
       metaTags: rawMetaTags is List

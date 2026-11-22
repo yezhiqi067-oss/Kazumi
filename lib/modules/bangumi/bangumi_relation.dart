@@ -80,11 +80,12 @@ class BangumiRelation {
 List<BangumiRelation> selectRelatedAnime(
   Iterable<BangumiRelation> relations, {
   required int currentSubjectId,
+  Set<int> allowedTypes = const {2},
 }) {
   final seenIds = <int>{};
   return relations.where((relation) {
     final item = relation.bangumiItem;
-    return item.type == 2 &&
+    return allowedTypes.contains(item.type) &&
         item.id != currentSubjectId &&
         seenIds.add(item.id);
   }).toList(growable: false);
@@ -93,6 +94,7 @@ List<BangumiRelation> selectRelatedAnime(
 Future<List<BangumiRelation>> resolveRelatedAnimeChain({
   required int currentSubjectId,
   required BangumiRelationFetcher fetchRelations,
+  Set<int> allowedTypes = const {2},
   int maxDepth = 12,
   int maxFetchCount = 20,
 }) async {
@@ -112,6 +114,7 @@ Future<List<BangumiRelation>> resolveRelatedAnimeChain({
   final directRelations = selectRelatedAnime(
     rootRelations,
     currentSubjectId: currentSubjectId,
+    allowedTypes: allowedTypes,
   );
   final relationById = <int, BangumiRelation>{
     for (final relation in directRelations) relation.bangumiItem.id: relation,
@@ -132,7 +135,7 @@ Future<List<BangumiRelation>> resolveRelatedAnimeChain({
     final item = relation.bangumiItem;
     final direction = relation.relation;
     if (!_bangumiMainlineRelations.contains(direction) ||
-        item.type != 2 ||
+        !allowedTypes.contains(item.type) ||
         item.id == currentSubjectId) {
       continue;
     }
@@ -185,7 +188,7 @@ Future<List<BangumiRelation>> resolveRelatedAnimeChain({
       for (final relation in relations) {
         final item = relation.bangumiItem;
         if (relation.relation != node.direction ||
-            item.type != 2 ||
+            !allowedTypes.contains(item.type) ||
             item.id == currentSubjectId) {
           continue;
         }
