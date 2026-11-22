@@ -75,6 +75,7 @@ class SearchDoubleRange {
 class SearchFilterState {
   final String id;
   final String keyword;
+  final List<int> types;
   final List<String> tags;
   final String sort;
   final String season;
@@ -86,6 +87,7 @@ class SearchFilterState {
   const SearchFilterState({
     this.id = '',
     this.keyword = '',
+    this.types = const [],
     this.tags = const [],
     this.sort = 'heat',
     this.season = '',
@@ -98,6 +100,7 @@ class SearchFilterState {
   bool get isIdSearch => id.isNotEmpty;
 
   bool get hasAdvancedFilters =>
+      types.isNotEmpty ||
       tags.isNotEmpty ||
       sort != 'heat' ||
       season.isNotEmpty ||
@@ -105,6 +108,16 @@ class SearchFilterState {
       rankRange?.isValid == true ||
       scoreRange?.isValid == true ||
       weekdays.isNotEmpty;
+
+  static List<int> normalizeTypes(Iterable<int> types) {
+    return types.where((e) => e == 2 || e == 6).toSet().toList()..sort();
+  }
+
+  List<int> effectiveTypes({required bool includeReal}) {
+    final normalized = normalizeTypes(types);
+    if (normalized.isNotEmpty) return normalized;
+    return includeReal ? const [2, 6] : const [2];
+  }
 
   SearchDateRange? get effectiveDateRange {
     if (dateRange != null) return dateRange;
@@ -115,6 +128,7 @@ class SearchFilterState {
   SearchFilterState copyWith({
     String? id,
     String? keyword,
+    List<int>? types,
     List<String>? tags,
     String? sort,
     Object? season = _unchanged,
@@ -126,6 +140,7 @@ class SearchFilterState {
     return SearchFilterState(
       id: id ?? this.id,
       keyword: keyword ?? this.keyword,
+      types: types ?? this.types,
       tags: tags ?? this.tags,
       sort: sort ?? this.sort,
       season: identical(season, _unchanged) ? this.season : season as String,
@@ -147,11 +162,15 @@ class SearchParser {
   final String query;
 
   static const String _fieldNames =
-      'id|tag|sort|season|date|rank|score|weekday|nsfw';
+      'id|tag|type|sort|season|date|rank|score|weekday|nsfw';
 
   final RegExp _idRegExp = RegExp(r'id:(\d+)', caseSensitive: false);
   final RegExp _tagRegExp = RegExp(
-    r'(?:^|\s)tag:([^\s]+?)(?=(?:id|tag|sort|season|date|rank|score|weekday|nsfw):|\s|$)',
+    r'(?:^|\s)tag:([^\s]+?)(?=(?:id|tag|type|sort|season|date|rank|score|weekday|nsfw):|\s|$)',
+    caseSensitive: false,
+  );
+  final RegExp _typeRegExp = RegExp(
+    r'type:(\d+(?:,\d+)*)',
     caseSensitive: false,
   );
   final RegExp _sortRegExp = RegExp(r'sort:([\w\-]+)', caseSensitive: false);
@@ -181,6 +200,17 @@ class SearchParser {
   String? parseId() {
     final match = _idRegExp.firstMatch(query);
     return match?.group(1);
+  }
+
+  List<int> parseTypes() {
+    return SearchFilterState.normalizeTypes(
+      _typeRegExp
+          .allMatches(query)
+          .map((match) => match.group(1) ?? '')
+          .expand((value) => value.split(','))
+          .map((e) => int.tryParse(e))
+          .whereType<int>(),
+    );
   }
 
   List<String> parseTags() {
@@ -251,6 +281,7 @@ class SearchParser {
     return SearchFilterState(
       id: parseId() ?? '',
       keyword: parseKeywords(),
+      types: parseTypes(),
       tags: parseTags(),
       sort: parseSort() ?? 'heat',
       season: parseSeason() ?? '',
@@ -290,6 +321,10 @@ class SearchParser {
     if (state.weekdays.isNotEmpty) {
       final weekdays = state.weekdays.toSet().toList()..sort();
       tokens.add('weekday:${weekdays.join(',')}');
+    }
+    final types = normalizeTypes(state.types);
+    if (types.isNotEmpty) {
+      tokens.add('type:${types.join(',')}');
     }
     return tokens.join(' ').trim();
   }
