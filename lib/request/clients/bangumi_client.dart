@@ -46,6 +46,10 @@ class BangumiClient {
     cancelToken: cancelToken,
   );
 
+  bool get _hasMirrorCredentials =>
+      (bangumiMirrorCredentials['id'] ?? '').trim().isNotEmpty &&
+      (bangumiMirrorCredentials['value'] ?? '').trim().isNotEmpty;
+
   Future<dynamic> _request(
     String method,
     String url, {
@@ -56,42 +60,96 @@ class BangumiClient {
     CancelToken? cancelToken,
   }) async {
     final uri = Uri.parse(url);
-    final route = _route(uri, requiresAuth);
+    final route = _route(uri, requiresAuth, method);
     try {
-      final response = await DioFactory.bangumiDio.request(
-        route == BangumiAcceleration.mirror
-            ? ApiEndpoints.bangumiMirrorDomain +
-                  uri.path +
-                  (uri.hasQuery ? '?${uri.query}' : '')
-            : url,
+      return await _executeRequest(
+        route: route,
+        method: method,
+        url: url,
+        uri: uri,
         data: data,
         queryParameters: queryParameters,
-        options: Options(
-          method: method,
-          headers: _headers(
-            route: route,
-            requiresAuth: requiresAuth,
-            accessToken: accessToken,
-            method: method,
-            path: uri.path,
-            data: data,
-          ),
-          extra: route == BangumiAcceleration.ech ? echExtra : null,
-        ),
+        requiresAuth: requiresAuth,
+        accessToken: accessToken,
         cancelToken: cancelToken,
       );
-      return response.data;
     } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      if (!(cancelToken?.isCancelled ?? false) &&
+          route == BangumiAcceleration.mirror &&
+          ApiEndpoints.bangumiPublicApiHosts.contains(uri.host) &&
+          (statusCode == 401 || statusCode == 403 || statusCode == 404)) {
+        try {
+          return await _executeRequest(
+            route: BangumiAcceleration.ech,
+            method: method,
+            url: url,
+            uri: uri,
+            data: data,
+            queryParameters: queryParameters,
+            requiresAuth: requiresAuth,
+            accessToken: accessToken,
+            cancelToken: cancelToken,
+          );
+        } on DioException catch (fallbackError) {
+          throw await NetworkErrorMapper.mapException(fallbackError);
+        }
+      }
       throw await NetworkErrorMapper.mapException(e);
     }
   }
 
+  Future<dynamic> _executeRequest({
+    required BangumiAcceleration route,
+    required String method,
+    required String url,
+    required Uri uri,
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    required bool requiresAuth,
+    String? accessToken,
+    CancelToken? cancelToken,
+  }) async {
+    final response = await DioFactory.bangumiDio.request(
+      route == BangumiAcceleration.mirror
+          ? ApiEndpoints.bangumiMirrorDomain +
+                uri.path +
+                (uri.hasQuery ? '?${uri.query}' : '')
+          : url,
+      data: data,
+      queryParameters: queryParameters,
+      options: Options(
+        method: method,
+        headers: _headers(
+          route: route,
+          requiresAuth: requiresAuth,
+          accessToken: accessToken,
+          method: method,
+          path: uri.path,
+          data: data,
+        ),
+        extra: route == BangumiAcceleration.ech ? echExtra : null,
+      ),
+      cancelToken: cancelToken,
+    );
+    return response.data;
+  }
+
   /// User-scoped requests always reach the official API over ECH.
-  BangumiAcceleration _route(Uri uri, bool requiresAuth) {
+  BangumiAcceleration _route(Uri uri, bool requiresAuth, String method) {
     if (!ApiEndpoints.bangumiPublicApiHosts.contains(uri.host)) {
       return BangumiAcceleration.direct;
     }
-    return requiresAuth ? BangumiAcceleration.ech : BangumiAcceleration.current;
+    if (requiresAuth) {
+      return BangumiAcceleration.ech;
+    }
+    final mode = BangumiAcceleration.current;
+    if (mode == BangumiAcceleration.mirror &&
+        !_hasMirrorCredentials &&
+        _isProtectedMirrorPath(method, uri.path)) {
+      return BangumiAcceleration.ech;
+    }
+    return mode;
   }
 
   Map<String, dynamic> _headers({
