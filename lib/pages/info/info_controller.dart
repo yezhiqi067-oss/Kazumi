@@ -6,6 +6,8 @@ import 'package:kazumi/modules/bangumi/bangumi_review.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/request/apis/bangumi_api.dart';
+import 'package:kazumi/services/storage/settings_keys.dart';
+import 'package:kazumi/services/storage/storage.dart';
 import 'package:mobx/mobx.dart';
 import 'package:kazumi/services/logging/logger.dart';
 import 'package:kazumi/modules/comments/comment_item.dart';
@@ -240,9 +242,14 @@ abstract class _InfoController with Store {
     relationsQueryTimeout = false;
     relationsHasLoaded = false;
     try {
+      final allowedTypes =
+          (bangumiItem.type == 6 || _resolveSearchIncludeReal())
+              ? const <int>{2, 6}
+              : const <int>{2};
       final relations = await resolveRelatedAnimeChain(
         currentSubjectId: id,
         fetchRelations: BangumiApi.getBangumiRelationsByID,
+        allowedTypes: allowedTypes,
       );
       if (!_isCurrentRelationRequest(requestGeneration, id)) {
         return;
@@ -267,6 +274,14 @@ abstract class _InfoController with Store {
   bool _isCurrentRelationRequest(int requestGeneration, int subjectId) =>
       requestGeneration == _relationRequestGeneration &&
       bangumiItem.id == subjectId;
+
+  bool _resolveSearchIncludeReal() {
+    try {
+      return GStorage.getSetting(SettingsKeys.searchIncludeReal);
+    } catch (_) {
+      return SettingsKeys.searchIncludeReal.defaultValue;
+    }
+  }
 
   Future<bool> rateBangumi(BangumiReview review,
       {required int localType}) async {
