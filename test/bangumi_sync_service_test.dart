@@ -103,6 +103,48 @@ void main() {
     }
   });
 
+  test('protected mirror search falls back to ECH without mirror credentials',
+      () async {
+    final previousMode = GStorage.getSetting<String>(
+      SettingsKeys.bangumiAcceleration,
+    );
+    addTearDown(
+      () => GStorage.putSetting(SettingsKeys.bangumiAcceleration, previousMode),
+    );
+    await GStorage.putSetting(SettingsKeys.bangumiAcceleration, '');
+    await GStorage.putSetting(SettingsKeys.enableBangumiProxy, true);
+    await BangumiClient.instance.post(
+      'https://api.bgm.tv/v0/search/subjects?limit=20&offset=0',
+      data: const {'keyword': '假面骑士'},
+    );
+    expect(
+      adapter.requests.last.uri,
+      Uri.parse('https://api.bgm.tv/v0/search/subjects?limit=20&offset=0'),
+    );
+    expect(adapter.requests.last.extra['ech'], isTrue);
+  });
+
+  test('mirror 404 falls back to ECH on Bangumi public subject endpoints',
+      () async {
+    final previousMode = GStorage.getSetting<String>(
+      SettingsKeys.bangumiAcceleration,
+    );
+    addTearDown(
+      () => GStorage.putSetting(SettingsKeys.bangumiAcceleration, previousMode),
+    );
+    await GStorage.putSetting(SettingsKeys.bangumiAcceleration, 'mirror');
+    adapter.respond = (request) async => request.uri.host == 'api.kazumi.fyi'
+        ? _json({}, status: 404)
+        : _json({'id': 6016});
+    final data = await BangumiClient.instance
+        .get('https://next.bgm.tv/p1/subjects/6016');
+    expect(data['id'], 6016);
+    expect(adapter.requests, hasLength(2));
+    expect(adapter.requests.first.uri.host, 'api.kazumi.fyi');
+    expect(adapter.requests.last.uri.host, 'next.bgm.tv');
+    expect(adapter.requests.last.extra['ech'], isTrue);
+  });
+
   test('failed draft validation preserves credentials and connected account',
       () async {
     await bangumi.ping();
