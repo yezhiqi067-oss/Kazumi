@@ -322,7 +322,7 @@ class SearchParser {
       final weekdays = state.weekdays.toSet().toList()..sort();
       tokens.add('weekday:${weekdays.join(',')}');
     }
-    final types = normalizeTypes(state.types);
+    final types = SearchFilterState.normalizeTypes(state.types);
     if (types.isNotEmpty) {
       tokens.add('type:${types.join(',')}');
     }
