@@ -488,6 +488,11 @@ class SettingsKeys {
     'list',
     group: SettingGroup.interface,
   );
+  static const searchIncludeReal = SettingKey<bool>(
+    'searchIncludeReal',
+    true,
+    group: SettingGroup.interface,
+  );
   static const downloadParallelEpisodes = SettingKey<int>(
     _SettingBoxKey.downloadParallelEpisodes,
     2,
@@ -670,6 +675,7 @@ class SettingsKeys {
     proxyTestUrl,
     showRating,
     defaultCollectLayout,
+    searchIncludeReal,
     downloadParallelEpisodes,
     downloadParallelSegments,
     downloadDanmaku,
