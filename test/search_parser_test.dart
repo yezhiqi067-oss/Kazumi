@@ -78,5 +78,46 @@ void main() {
         '孤独摇滚 tag:音乐 tag:漫画改 sort:score season:2022Q4 rank:1..1000 score:8..10 weekday:1,6',
       );
     });
+
+    test('parses and serializes subject types including tokusatsu (type 6)', () {
+      final realOnly = SearchParser('假面骑士 type:6');
+      expect(realOnly.parseKeywords(), '假面骑士');
+      expect(realOnly.parseTypes(), [6]);
+      expect(
+        SearchParser.fromFilterState(realOnly.toFilterState()),
+        '假面骑士 type:6',
+      );
+
+      final combined = SearchParser('假面骑士 type:6,2');
+      expect(combined.parseTypes(), [2, 6]);
+      expect(
+        SearchParser.fromFilterState(combined.toFilterState()),
+        '假面骑士 type:2,6',
+      );
+
+      final adjacent = SearchParser('tag:特摄type:6');
+      expect(adjacent.parseTags(), ['特摄']);
+      expect(adjacent.parseTypes(), [6]);
+      expect(adjacent.parseKeywords(), isEmpty);
+
+      final invalid = SearchParser('假面骑士 type:999');
+      expect(invalid.parseTypes(), isEmpty);
+      expect(invalid.parseKeywords(), '假面骑士');
+    });
+
+    test('resolves effective types from settings and explicit overrides', () {
+      const defaultState = SearchFilterState(keyword: '假面骑士');
+      expect(defaultState.hasAdvancedFilters, isFalse);
+      expect(defaultState.effectiveTypes(includeReal: true), [2, 6]);
+      expect(defaultState.effectiveTypes(includeReal: false), [2]);
+
+      const explicitReal = SearchFilterState(keyword: '假面骑士', types: [6]);
+      expect(explicitReal.hasAdvancedFilters, isTrue);
+      expect(explicitReal.effectiveTypes(includeReal: false), [6]);
+
+      const explicitAnime = SearchFilterState(keyword: '风都侦探', types: [2]);
+      expect(explicitAnime.hasAdvancedFilters, isTrue);
+      expect(explicitAnime.effectiveTypes(includeReal: true), [2]);
+    });
   });
 }

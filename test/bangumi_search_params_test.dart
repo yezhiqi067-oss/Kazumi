@@ -40,5 +40,28 @@ void main() {
       expect(filter['air_weekday'], [1, 6]);
       expect(filter['nsfw'], isFalse);
     });
+
+    test('supports custom subject types for tokusatsu and real subjects', () {
+      final combined = BangumiApi.buildBangumiSearchParams(
+        '假面骑士',
+        types: const [6, 2, 6],
+      );
+      final combinedFilter = combined['filter'] as Map<String, dynamic>;
+      expect(combinedFilter['type'], [2, 6]);
+
+      final realOnly = BangumiApi.buildBangumiSearchParams(
+        '假面骑士空我',
+        types: const [6],
+      );
+      final realOnlyFilter = realOnly['filter'] as Map<String, dynamic>;
+      expect(realOnlyFilter['type'], [6]);
+
+      final emptyFallback = BangumiApi.buildBangumiSearchParams(
+        'frieren',
+        types: const [],
+      );
+      final fallbackFilter = emptyFallback['filter'] as Map<String, dynamic>;
+      expect(fallbackFilter['type'], [2]);
+    });
   });
 }
