@@ -68,6 +68,17 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
     FocusScope.of(context).unfocus();
   }
 
+  String get _typeFilterValue {
+    return SearchFilterState.normalizeTypes(_draft.types).join(',');
+  }
+
+  List<int> _parseTypeDropdownValue(String? value) {
+    if (value == '2') return const [2];
+    if (value == '6') return const [6];
+    if (value == '2,6') return const [2, 6];
+    return const [];
+  }
+
   void _reset() {
     setState(() {
       _draft = SearchFilterState(id: _draft.id, keyword: _draft.keyword);
@@ -226,6 +237,25 @@ class _SearchFilterSheetState extends State<_SearchFilterSheet> {
                 ],
                 onChanged: (value) => setState(
                     () => _draft = _draft.copyWith(sort: value ?? 'heat')),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                key: ValueKey('type-$_typeFilterValue'),
+                initialValue: _typeFilterValue,
+                isExpanded: true,
+                decoration: _fieldDecoration('条目类型'),
+                items: const [
+                  DropdownMenuItem(value: '', child: Text('默认（跟随设置）')),
+                  DropdownMenuItem(
+                      value: '2,6', child: Text('动画 + 三次元（含特摄）')),
+                  DropdownMenuItem(value: '6', child: Text('仅三次元（特摄 / 剧集）')),
+                  DropdownMenuItem(value: '2', child: Text('仅动画')),
+                ],
+                onChanged: (value) => setState(
+                  () => _draft = _draft.copyWith(
+                    types: _parseTypeDropdownValue(value),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
               _SearchFilterGroup(

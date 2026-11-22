@@ -9,6 +9,8 @@ import 'package:kazumi/repositories/collect_repository.dart';
 import 'package:kazumi/repositories/search_history_repository.dart';
 import 'package:kazumi/request/apis/bangumi_api.dart';
 import 'package:kazumi/request/apis/trace_api.dart';
+import 'package:kazumi/services/storage/settings_keys.dart';
+import 'package:kazumi/services/storage/storage.dart';
 import 'package:kazumi/utils/search_parser.dart';
 
 part 'search_controller.g.dart';
@@ -87,6 +89,9 @@ abstract class _SearchPageController with Store {
     }
     if (generation != _searchGeneration) return;
     final filterState = SearchParser(input).toFilterState();
+    final searchTypes = filterState.effectiveTypes(
+      includeReal: _resolveSearchIncludeReal(),
+    );
     final id = int.tryParse(filterState.id);
     if (id != null) {
       final item = await BangumiApi.getBangumiInfoByID(id);
@@ -102,6 +107,7 @@ abstract class _SearchPageController with Store {
     var pagesFetched = 0;
     do {
       final page = await BangumiApi.bangumiSearch(filterState.keyword,
+          types: searchTypes,
           tags: filterState.tags,
           limit: _searchPageSize,
           offset: _searchOffset,
@@ -206,5 +212,13 @@ abstract class _SearchPageController with Store {
 
   Set<int> loadAbandonedBangumiIds() {
     return _collectRepository.getBangumiIdsByType(CollectType.abandoned);
+  }
+
+  bool _resolveSearchIncludeReal() {
+    try {
+      return GStorage.getSetting(SettingsKeys.searchIncludeReal);
+    } catch (_) {
+      return SettingsKeys.searchIncludeReal.defaultValue;
+    }
   }
 }

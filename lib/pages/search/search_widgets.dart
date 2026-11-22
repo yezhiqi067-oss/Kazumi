@@ -9,17 +9,28 @@ const _searchSortLabels = {
 
 String _sortLabel(String sort) => _searchSortLabels[sort] ?? '热度';
 
-String _filterSummary(SearchFilterState state) => [
-      ...state.tags,
-      if (state.season.isNotEmpty) state.season,
-      if (state.season.isEmpty && state.dateRange != null)
-        '${state.dateRange!.start} 至 ${state.dateRange!.end}',
-      if (state.scoreRange?.isValid == true)
-        '评分 ${state.scoreRange!.toToken()}',
-      if (state.rankRange?.isValid == true) '排名 ${state.rankRange!.toToken()}',
-      if (state.weekdays.isNotEmpty)
-        '周${state.weekdays.map((day) => '一二三四五六日'[day - 1]).join('、')}',
-    ].join(' · ');
+String _typeLabel(List<int> types) {
+  final normalized = SearchFilterState.normalizeTypes(types);
+  if (normalized.isEmpty) return '';
+  if (normalized.length == 2) return '动画 + 三次元';
+  return normalized.first == 6 ? '三次元（特摄/剧集）' : '仅动画';
+}
+
+String _filterSummary(SearchFilterState state) {
+  final typeLabel = _typeLabel(state.types);
+  return [
+    if (typeLabel.isNotEmpty) typeLabel,
+    ...state.tags,
+    if (state.season.isNotEmpty) state.season,
+    if (state.season.isEmpty && state.dateRange != null)
+      '${state.dateRange!.start} 至 ${state.dateRange!.end}',
+    if (state.scoreRange?.isValid == true)
+      '评分 ${state.scoreRange!.toToken()}',
+    if (state.rankRange?.isValid == true) '排名 ${state.rankRange!.toToken()}',
+    if (state.weekdays.isNotEmpty)
+      '周${state.weekdays.map((day) => '一二三四五六日'[day - 1]).join('、')}',
+  ].join(' · ');
+}
 
 String _readableQuery(String query) {
   final state = SearchParser(query).toFilterState();
