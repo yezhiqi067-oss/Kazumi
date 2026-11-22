@@ -16,6 +16,7 @@ class InterfaceSettingsPage extends StatefulWidget {
 
 class _InterfaceSettingsPageState extends State<InterfaceSettingsPage> {
   late bool showRating;
+  late bool searchIncludeReal;
   late String defaultPage;
   late CollectLayout _defaultCollectLayout;
   bool _savingCollectLayout = false;
@@ -34,6 +35,7 @@ class _InterfaceSettingsPageState extends State<InterfaceSettingsPage> {
   void initState() {
     super.initState();
     showRating = GStorage.getSetting(SettingsKeys.showRating);
+    searchIncludeReal = GStorage.getSetting(SettingsKeys.searchIncludeReal);
     defaultPage = GStorage.getSetting(SettingsKeys.defaultStartupPage);
     _defaultCollectLayout = CollectLayout.fromValue(
       GStorage.getSetting(SettingsKeys.defaultCollectLayout),
@@ -99,6 +101,20 @@ class _InterfaceSettingsPageState extends State<InterfaceSettingsPage> {
               title: Text('显示评分'),
               description: Text('关闭后隐藏概览和番剧列表中的评分信息'),
               initialValue: showRating,
+            ),
+            SettingsTile.switchTile(
+              leading: Icons.live_tv_rounded,
+              onToggle: (value) async {
+                searchIncludeReal = value ?? !searchIncludeReal;
+                await GStorage.putSetting(
+                  SettingsKeys.searchIncludeReal,
+                  searchIncludeReal,
+                );
+                setState(() {});
+              },
+              title: Text('搜索包含三次元内容'),
+              description: Text('默认同时检索 Bangumi 动画与三次元条目（如特摄剧、真人影视）'),
+              initialValue: searchIncludeReal,
             ),
           ]),
           if (isDesktop())
