@@ -268,6 +268,7 @@ class BangumiApi {
 
   static Map<String, dynamic> buildBangumiSearchParams(
     String keyword, {
+    List<int> types = const [2],
     List<String> tags = const [],
     String sort = 'heat',
     SearchDateRange? dateRange,
@@ -280,9 +281,11 @@ class BangumiApi {
         : (sort == 'rank')
             ? [">0", "<=99999"]
             : [">=0", "<=99999"];
+    final normalizedTypes =
+        types.isEmpty ? const [2] : (types.toSet().toList()..sort());
 
     final filter = <String, dynamic>{
-      "type": [2],
+      "type": normalizedTypes,
       "tag": tags,
       "rank": rankFilter,
       "nsfw": false
@@ -307,7 +310,8 @@ class BangumiApi {
   }
 
   static Future<BangumiSearchPage?> bangumiSearch(String keyword,
-      {List<String> tags = const [],
+      {List<int> types = const [2],
+      List<String> tags = const [],
       int limit = 20,
       int offset = 0,
       String sort = 'heat',
@@ -319,6 +323,7 @@ class BangumiApi {
 
     final params = buildBangumiSearchParams(
       keyword,
+      types: types,
       tags: tags,
       sort: sort,
       dateRange: dateRange,
